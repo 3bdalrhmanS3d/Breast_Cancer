@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+#import missingno as msno
 
 # Title of the Web App
 st.title("Dataset Analysis, Preprocessing, and Visualization")
@@ -19,34 +21,45 @@ if uploaded_file:
     st.subheader("Basic Dataset Information")
     st.write(f"Number of Rows: {df.shape[0]}")
     st.write(f"Number of Columns: {df.shape[1]}")
-    st.write("Dataset Columns:", df.columns.tolist())
-
-    # Preprocessing Options
-    st.subheader("Preprocessing and Cleaning")
-    if st.checkbox("Show Missing Values"):
-        st.write("Missing Values in Each Column:")
-        st.dataframe(df.isnull().sum())
-
-    if st.checkbox("Drop Missing Values"):
-        df.dropna(inplace=True)
-        st.write("Missing values have been dropped.")
-        st.dataframe(df)
     
-    if st.checkbox("Handle Duplicates"):
-        df.drop_duplicates(inplace=True)
-        st.write("Duplicates have been removed.")
-        st.dataframe(df)
+    # Show detailed dataset info
+    buffer = df.info(buf=None)  # Capture df.info() output in a variable
+    st.text("Detailed Dataset Information:")
+    df_info = df.dtypes.reset_index()
+    df_info.columns = ["Column Name", "Data Type"]
+    df_info["Null Count"] = df.isnull().sum().values
+    st.dataframe(df_info)
 
+    # Density Plots for All Columns
+    
+    if st.subheader("Density Graphs for All Columns"):
+        numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+        if len(numeric_columns) > 0:
+            plt.figure(figsize=(20, 15))
+            plotnumber = 1
+            for column in numeric_columns:
+                if plotnumber <= 30:  # Limiting to 30 plots
+                    ax = plt.subplot(5, 6, plotnumber)
+                    sns.kdeplot(df[column], shade=True)
+                    plt.xlabel(column)
+                plotnumber += 1
+
+            plt.tight_layout()
+            st.pyplot(plt)
+        else:
+            st.write("No numeric columns found for density plots.")
+    
     # Correlation Matrix
-    if st.checkbox("Show Correlation Heatmap"):
-        st.write("### Correlation Matrix Heatmap")
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(df.corr(), annot=True, cmap="coolwarm")
+    if st.subheader("Correlation Heatmap"):
+        
+        plt.figure(figsize=(20, 12))
+        corr=df.corr()
+        mask = np.triu(np.ones_like(corr, dtype=bool))
+        sns.heatmap(corr, mask=mask, linewidths=1, annot=True, fmt = ".2f")
         st.pyplot(plt)
 
     # Visualization Options
     st.subheader("Data Visualization")
-
     column = st.selectbox("Select Column for Visualization", df.columns)
     
     if df[column].dtype in ['int64', 'float64']:
@@ -62,6 +75,13 @@ if uploaded_file:
         st.write(f"### Boxplot of {column}")
         plt.figure(figsize=(8, 4))
         sns.boxplot(y=df[column])
+        st.pyplot(plt)
+
+        # Density Plot for Selected Column
+        st.write(f"### Density Plot of {column}")
+        plt.figure(figsize=(8, 4))
+        sns.kdeplot(df[column], shade=True, color="green")
+        plt.xlabel(column)
         st.pyplot(plt)
     
     else:
