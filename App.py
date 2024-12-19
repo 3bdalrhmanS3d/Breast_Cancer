@@ -113,6 +113,18 @@ if uploaded_file:
         plt.ylabel(column)
         st.pyplot(plt)
 
+        # Pie chart for Status
+        st.write(f"### Pie chart of {column}")
+        plt.figure(figsize=(8, 8))
+
+        # Correcting the call to plot
+        df[column].value_counts().plot(kind='pie', autopct='%1.1f%%', startangle=90, colors=['red', 'green'])
+
+        plt.title(f"Pie Chart: {column}")
+        plt.ylabel("")  # To remove the ylabel
+        st.pyplot(plt)  # Use st.pyplot to display the plot in Streamlit
+
+
         # Scatter Plot (if another numeric column is selected)
         second_column = st.selectbox("Select Second Numeric Column for Scatter Plot", df.columns)
         if df[second_column].dtype in ['int64', 'float64']:
