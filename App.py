@@ -156,7 +156,7 @@ if uploaded_file:
             unique_values = df[column].unique()
             st.write(unique_values)
 
-                # Bar Plot for Categorical Columns
+            # Bar Plot for Categorical Columns
             st.write(f"### Count Plot of {column}")
             plt.figure(figsize=(8, 4))
             sns.countplot(x=df[column])
