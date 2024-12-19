@@ -91,3 +91,11 @@ if uploaded_file:
         sns.countplot(x=df[column])
         plt.xticks(rotation=45)
         st.pyplot(plt)
+
+        # Histogram
+        st.write(f"### Histogram of {column}")
+        plt.figure(figsize=(8, 4))
+        plt.hist(df[column], bins=30, color="skyblue")
+        plt.xlabel(column)
+        plt.ylabel("Count")
+        st.pyplot(plt)
