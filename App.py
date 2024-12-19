@@ -71,6 +71,19 @@ if uploaded_file:
     column = st.selectbox("Select Column for Visualization", df.columns)
 
     if df[column].dtype in ['int64', 'float64']:
+        st.write(f"### Description of {column}")
+        desc = df[column].describe().reset_index()
+        desc.columns = ["Statistic", "Value"]
+        st.table(desc)
+
+        # ECDF (Empirical Cumulative Distribution Function)
+        st.write(f"### ECDF of {column}")
+        plt.figure(figsize=(8, 4))
+        sns.ecdfplot(df[column])
+        plt.xlabel(column)
+        plt.ylabel("ECDF")
+        st.pyplot(plt)
+
         # Histogram
         st.write(f"### Histogram of {column}")
         plt.figure(figsize=(8, 4))
@@ -100,6 +113,17 @@ if uploaded_file:
         plt.ylabel(column)
         st.pyplot(plt)
 
+        # Scatter Plot (if another numeric column is selected)
+        second_column = st.selectbox("Select Second Numeric Column for Scatter Plot", df.columns)
+        if df[second_column].dtype in ['int64', 'float64']:
+            st.write(f"### Scatter Plot of {column} vs {second_column}")
+            plt.figure(figsize=(8, 4))
+            plt.scatter(df[column], df[second_column], color="orange")
+            plt.xlabel(column)
+            plt.ylabel(second_column)
+            st.pyplot(plt)
+
+
     elif df[column].dtype == 'object':
         try:
             # Count Plot for Categorical Columns
@@ -119,6 +143,22 @@ if uploaded_file:
             st.write(f"### Unique Values in {column}")
             unique_values = df[column].unique()
             st.write(unique_values)
+
+                # Bar Plot for Categorical Columns
+            st.write(f"### Count Plot of {column}")
+            plt.figure(figsize=(8, 4))
+            sns.countplot(x=df[column])
+            plt.xticks(rotation=45)
+            st.pyplot(plt)
+
+            # Histogram
+            st.write(f"### Histogram of {column}")
+            plt.figure(figsize=(8, 4))
+            plt.hist(df[column], bins=30, color="skyblue")
+            plt.xlabel(column)
+            plt.ylabel("Count")
+            st.pyplot(plt)
+
         except Exception as e:
             st.error(f"Error visualizing column {column}: {e}")
 
