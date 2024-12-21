@@ -69,6 +69,9 @@ if uploaded_file:
     # Visualization Options
     st.subheader("Data Visualization")
     column = st.selectbox("Select Column for Visualization", df.columns)
+    
+    # Clear any existing plots
+    plt.clf()
 
     if df[column].dtype in ['int64', 'float64']:
         st.write(f"### Description of {column}")
@@ -81,13 +84,11 @@ if uploaded_file:
         plt.figure(figsize=(8, 4))
         sns.ecdfplot(df[column])
         plt.xlabel(column)
-        plt.ylabel("ECDF")
-        st.pyplot(plt)
-
-        # Histogram
-        st.write(f"### Histogram of {column}")
-        plt.figure(figsize=(8, 4))
-        plt.hist(df[column], bins=30, color="skyblue")
+        # Remove Histogram for categorical data as it's not appropriate
+        # Display value counts instead
+        st.write(f"### Value Counts of {column}")
+        value_counts = df[column].value_counts()
+        st.bar_chart(value_counts)
         plt.xlabel(column)
         plt.ylabel("Count")
         st.pyplot(plt)
