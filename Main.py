@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import ollama
 from io import StringIO
 from HandlingSection import *
 from Lib import *
@@ -39,7 +38,7 @@ def main():
             "4. Handle Duplicates",
             "5. Advanced Data Analysis",
             "6. Make Predictions",
-            "7. Chat using RAG" 
+            
             
         ])
 
@@ -226,8 +225,7 @@ def main():
             AdvancedDataAnalysis()
         elif menu == "6. Make Predictions":
             predict_new_use_case(df)
-        elif menu == "7. Chat using RAG":
-            chat_with_rag()
+        
         
 
 
