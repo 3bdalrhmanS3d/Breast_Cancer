@@ -69,6 +69,9 @@ def missing_value_analysis(df):
     sns.heatmap(df.isnull(), cbar=True, cmap="YlOrRd", ax=ax)
     st.pyplot(fig)
 
+    log_change("missing_value_analysis", "N/A", "Performed missing value analysis")
+
+
 def handle_object_column(df, selected_column):
     st.write(f"### Analysis for Column: {selected_column}")
     
@@ -236,6 +239,8 @@ def NormalizeColumn(df, selected_column):
             st.success(f"Normalization changes saved for column '{selected_column}'.")
             st.write("Unique Values and Frequencies (After Saving):")
             st.write(df[selected_column].value_counts(dropna=False))
+            log_change("NormalizeColumn", st.session_state[f"original_{selected_column}"].to_string(), df[selected_column].to_string())
+
         except Exception as e:
             st.error(f"An error occurred during saving: {e}")
 
@@ -246,6 +251,7 @@ def NormalizeColumn(df, selected_column):
             st.success(f"Restored original values for column '{selected_column}'.")
             st.write("Unique Values and Frequencies (After Restoration):")
             st.write(df[selected_column].value_counts())
+            log_change("Restore Original Values", df[selected_column].to_string(), st.session_state[f"original_{selected_column}"].to_string())
         else:
             st.warning("No original values saved to restore.")
 
@@ -277,6 +283,8 @@ def HandleNumericColumn(df, selected_column):
         replace_column_values(df, selected_column)
     elif selected_action == "Transform":
         handle_transformations(df, selected_column)
+
+    log_change("HandleNumericColumn", df[selected_column].to_string(), f"Handled numeric column: {selected_column}")
 
 def ReplaceSpecificValues(df, selected_column):
     st.session_state["data"] = df
@@ -312,6 +320,7 @@ def ReplaceSpecificValues(df, selected_column):
 
             st.write("Unique Values and Frequencies (After Replacement):")
             st.write(df[selected_column].value_counts())
+            log_change("ReplaceSpecificValues", st.session_state[f"original_{selected_column}"].to_string(), df[selected_column].to_string())
         else:
             st.error("Please provide both 'Replace from' and 'Replace with' values.")
 
@@ -322,6 +331,7 @@ def ReplaceSpecificValues(df, selected_column):
             st.success(f"Restored original values in column '{selected_column}'.")
             st.write("Unique Values and Frequencies (After Restoration):")
             st.write(df[selected_column].value_counts())
+            log_change("Restore Original Values", df[selected_column].to_string(), st.session_state[f"original_{selected_column}"].to_string())
         else:
             st.warning("No original values saved to restore.")
 
@@ -338,6 +348,8 @@ def ConvertToNumeric(df, selected_column):
             st.success(f"Converted column '{selected_column}' to numeric.")
             st.write("Column Statistics (After Conversion):")
             st.table(df[selected_column].describe())
+            log_change("ConvertToNumeric", st.session_state[f"original_{selected_column}"].to_string(), df[selected_column].to_string())
+
         except Exception as e:
             st.error(f"Error converting to numeric: {e}")
 
@@ -346,6 +358,7 @@ def ConvertToNumeric(df, selected_column):
             df[selected_column] = st.session_state[f"original_{selected_column}"]
             st.session_state["data"] = df
             st.success(f"Restored original values in column '{selected_column}'.")
+            log_change("Restore Original Values", df[selected_column].to_string(), st.session_state[f"original_{selected_column}"].to_string())
         else:
             st.warning("No original values saved to restore.")
 
@@ -356,6 +369,7 @@ def RenameColumn(df, selected_column):
             df.rename(columns={selected_column: new_column_name}, inplace=True)
             st.session_state["data"] = df
             st.success(f"Column '{selected_column}' has been renamed to '{new_column_name}'.")
+            log_change("RenameColumn", selected_column, new_column_name)
         else:
             st.error("Please provide a new column name.")
 
@@ -377,6 +391,7 @@ def outlier_analysis(df, column):
             sns.scatterplot(x=outliers[column], y=[0]*len(outliers), color='red', marker='o', ax=ax)
             plt.title(f"Box Plot of {column} with Outliers highlighted")
             st.pyplot(fig)
+    log_change("outlier_analysis", "N/A", f"Performed outlier analysis on column: {column}")
     return lower_bound, upper_bound
 
 def handle_outliers(df, column, lower_bound, upper_bound, method):
@@ -389,6 +404,8 @@ def handle_outliers(df, column, lower_bound, upper_bound, method):
         st.success(f"Outliers in {column} have been removed.")
     else:
         st.error("Invalid method for handling outliers.")
+
+    log_change("handle_outliers", "N/A", f"Handled outliers in column: {column} using method: {method}")
     return df
 
 
@@ -434,6 +451,7 @@ def HandleOutliers(df, selected_column):
             st.session_state[f"filtered_data_{selected_column}"] = st.session_state[f"preview_filtered_{selected_column}"].copy()
             st.success(f"Filtered data for column '{selected_column}' has been saved.")
             st.session_state["data"] = df
+            log_change("HandleOutliers", df[selected_column].to_string(), f"Handled outliers for column: {selected_column}")
 
     
             
@@ -472,7 +490,8 @@ def DeleteRowsColumns(df, selected_column):
                 df = df[df[selected_column] != value_to_delete]
                 st.session_state["data"] = df
                 st.success(f"Rows where {selected_column} equals '{value_to_delete}' have been deleted.")
-
+                log_change("DeleteRowsColumns", df[selected_column].to_string(), f"Deleted rows/columns for column: {selected_column}")
+                
                 with st.expander("Visualization After Deletion"):
                     fig, ax = plt.subplots()
                     df[selected_column].value_counts().plot(kind="bar", ax=ax, color="orange")
@@ -494,6 +513,7 @@ def DeleteRowsColumns(df, selected_column):
             df.drop(columns=[selected_column], inplace=True)
             st.session_state["data"] = df
             st.success(f"Column '{selected_column}' has been deleted.")
+            log_change("DeleteRowsColumns", df[selected_column].to_string(), f"Deleted rows/columns for column: {selected_column}")
 
     if st.button("Restore Original Data"):
         restore_column(df, selected_column)
@@ -503,6 +523,7 @@ def restore_column(df, selected_column):
         df[selected_column] = st.session_state[f"original_{selected_column}"].copy()
         st.session_state["data"] = df
         st.success(f"Restored original data for column '{selected_column}'.")
+        log_change("restore_column", "N/A", f"Restored original data for column: {selected_column}")
     else:
         st.warning(f"No backup found for column '{selected_column}'. Make sure the column was modified.")
 
@@ -617,6 +638,7 @@ def Visualization(df, selected_column):
                 st.pyplot(fig)
             else:
                 st.error("Not enough numerical columns for a pair plot.")
+        log_change("Visualization", "N/A", f"Visualized column: {selected_column} using {selected_visualization}")
 
 def GroupByTwoColumns(df, selected_column):
     """
@@ -640,6 +662,7 @@ def GroupByTwoColumns(df, selected_column):
         # Display grouped data
         st.write("### Grouped Data")
         st.write(grouped_df)
+        log_change("GroupByTwoColumns", "N/A", f"Grouped by column: {selected_column} and {groupby_column}")
 
 # Use namedtuple to provide structured and easy-to-read analysis results.
 CorrelationResult = namedtuple('CorrelationResult', ['correlation_matrix', 'features'])
@@ -667,6 +690,7 @@ def correlation_analysis(df, target_column):
         fig_custom, ax_custom = plt.subplots(figsize=(10, 8))
         sns.heatmap(correlation_matrix_custom, annot=True, cmap='coolwarm', ax=ax_custom)
         st.pyplot(fig_custom)
+        log_change("correlation_analysis", "N/A", f"Performed correlation analysis on target column: {target_column}")
         return CorrelationResult(correlation_matrix=correlation_matrix_custom, features=selected_features)
     else:
         st.warning("Please select at least one feature for custom correlation analysis.")
@@ -712,7 +736,7 @@ def feature_importance(df, target_column):
     sns.barplot(x='Importance', y='Feature', data=feature_importance_df, ax=ax)
     ax.set_title(f"Feature Importance - {model_name}")
     st.pyplot(fig)
-    
+    log_change("feature_importance", "N/A", f"Calculated feature importance for target column: {target_column}")
     return FeatureImportanceResult(importance_scores=dict(zip(X.columns, importance_scores)), model_name=model_name)
 
 StatisticalTestResult = namedtuple('StatisticalTestResult', ['test_statistic', 'p_value', 'null_hypothesis', 'alternative_hypothesis', 'significant'])
@@ -750,6 +774,7 @@ def statistical_tests(df, config: AnalysisConfig):
         
         st.write("Statistical Test Results:")
         st.table(results_df)
+        log_change("statistical_tests", "N/A", f"Performed statistical tests on features: {config.features_to_include}")
         return result
     else:
         st.error("Unsupported test type.")
@@ -848,7 +873,7 @@ def handle_transformations(df, selected_column):
                 if st.button("Apply Transformation"):
                     st.success(f"Transformation '{transform_type}' applied to '{selected_column}'.")
                     st.session_state["data"] = transformer.df
-                    
+                    log_change("handle_transformations", st.session_state[f"original_{selected_column}"].to_string(), transformer.df[selected_column].to_string())
         except Exception as e:
             st.error(f"Error during transformation: {str(e)}")
     
@@ -1020,6 +1045,7 @@ def replace_column_values(df, selected_column):
             st.success(f"Converted column '{selected_column}' to {action}.")
             st.write("Column Statistics (After Conversion):")
             st.table(df[selected_column].describe())
+            log_change("replace_column_values", st.session_state[f"original_{selected_column}"].to_string(), df[selected_column].to_string())
         except Exception as e:
             st.error(f"Error converting to numeric: {e}")
 
