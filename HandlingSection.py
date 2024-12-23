@@ -531,7 +531,7 @@ def Visualization(df, selected_column):
     col_type = df[selected_column].dtype
 
     # Determine visualization options based on column type
-    if col_type == 'object':
+    if col_type in ['object' , 'bool' ]:
         visualizations = [
             "Bar Plot (Frequency)",
             "Pie Chart"
@@ -1083,3 +1083,37 @@ def show_change_log():
                 st.write(change['details'])
     else:
         st.info("No changes logged yet")
+
+def HandleBooleanColumn(df, selected_column):
+    st.subheader(f"Handling Boolean Column: {selected_column}")
+
+    actions = ["Rename Column", "Convert to Numeric", "Visualization"]
+    selected_action = st.selectbox("Select Action for Boolean Column", actions, key=f"boolean_action_{selected_column}")
+
+    # Save original state if not already saved
+    if f"original_{selected_column}" not in st.session_state:
+        st.session_state[f"original_{selected_column}"] = df[selected_column].copy()
+
+    if selected_action == "Rename Column":
+        RenameColumn(df, selected_column)
+
+    elif selected_action == "Convert to Numeric":
+        df[selected_column] = df[selected_column].astype(int)
+        st.success(f"Converted boolean column '{selected_column}' to numeric.")
+        st.session_state["data"] = df
+        log_change("ConvertToNumeric", st.session_state[f"original_{selected_column}"].to_string(), df[selected_column].to_string())
+
+    elif selected_action == "Visualization":
+        Visualization(df, selected_column)
+
+    log_change("HandleBooleanColumn", df[selected_column].to_string(), f"Handled boolean column: {selected_column}")
+
+    # Restore original button
+    if st.button("Restore Original Values", key=f"restore_{selected_column}"):
+        if f"original_{selected_column}" in st.session_state:
+            df[selected_column] = st.session_state[f"original_{selected_column}"]
+            st.session_state["data"] = df
+            st.success(f"Restored original values for column '{selected_column}'.")
+            log_change("Restore Original Values", "N/A", f"Restored original values for column: {selected_column}")
+        else:
+            st.warning("No original values saved to restore.")

@@ -96,6 +96,8 @@ def main():
         else:
             if df[selected_column].dtype in ['int64', 'float64']:
                 HandleNumericColumn(df,selected_column )
+            elif df[selected_column].dtype == 'bool':
+                HandleBooleanColumn(df, selected_column)
             else :
                 handle_object_column(df, selected_column)
 
