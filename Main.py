@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import ollama
 from io import StringIO
 from HandlingSection import *
 
@@ -37,8 +38,7 @@ def main():
             "4. Handle Duplicates",
             "5. Advanced Data Analysis",
             "6. Make Predictions",
-            
-            
+            "7. Show All Chandes"
         ])
 
     # Dataset Info
@@ -50,8 +50,14 @@ def main():
         "Data Type": df.dtypes
         }
 
-        dataset_info_df = pd.DataFrame(dataset_info).style.background_gradient(cmap="coolwarm")
-        st.table(dataset_info_df)
+        dataset_info_df = pd.DataFrame(dataset_info).reset_index(drop=True)
+        
+        # Add memory usage
+        memory_usage = df.memory_usage(deep=True).sum() / 1024 ** 2  # Convert to MB
+        st.markdown(f"#### Total Memory Usage: {memory_usage:.2f} MB, Shape: { df.shape} .")
+        
+        styled_info = dataset_info_df.style.background_gradient(cmap="coolwarm")
+        st.table(styled_info)
     
     def describe_dataset():
         """Display descriptive statistics for numeric and object columns separately."""
@@ -74,6 +80,10 @@ def main():
             st.table(styled_object)
         else:
             st.warning("No categorical columns found in the dataset.")
+        
+        n_rows = st.number_input("Number of rows to display", min_value=1, max_value=len(df), value=10)
+        st.subheader(f"First {n_rows} rows of the dataset")
+        st.table(df.head(n_rows))
 
 
     def handle_missing_values():
@@ -224,6 +234,8 @@ def main():
             AdvancedDataAnalysis()
         elif menu == "6. Make Predictions":
             predict_new_use_case(df)
+        elif menu == "7. Show All Chandes":
+            show_change_log()
         
         
 

@@ -5,10 +5,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import missingno as msno
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.utils.multiclass import type_of_target
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from scipy.stats import ttest_ind
 from collections import namedtuple
+from datetime import datetime
 from dataclasses import dataclass
 from PredictionManager import * 
 
@@ -250,7 +253,7 @@ def HandleNumericColumn(df, selected_column):
     st.subheader(f"Handling Numeric Column: {selected_column}")
 
     # Define actions
-    actions = ["Rename Column", "Handle Outliers", "Visualization", "Group By Two Columns"]
+    actions = ["Rename Column", "Handle Outliers", "Visualization", "Group By Two Columns", "Handel Missing" , "Transform"]
     selected_action = st.selectbox("Select Action for Numeric Column", actions, key=f"numeric_action_{selected_column}")
 
 
@@ -269,6 +272,11 @@ def HandleNumericColumn(df, selected_column):
     # Action: Group By Two Columns
     elif selected_action == "Group By Two Columns":
         GroupByTwoColumns(df, selected_column)
+
+    elif selected_action == "Handel Missing":
+        replace_column_values(df, selected_column)
+    elif selected_action == "Transform":
+        handle_transformations(df, selected_column)
 
 def ReplaceSpecificValues(df, selected_column):
     st.session_state["data"] = df
@@ -665,24 +673,47 @@ def correlation_analysis(df, target_column):
         return None
 
 FeatureImportanceResult = namedtuple('FeatureImportanceResult', ['importance_scores', 'model_name'])
+
 def feature_importance(df, target_column):
-    """Calculate feature importance using RandomForestClassifier"""
+    """Calculate feature importance using RandomForestClassifier or RandomForestRegressor"""
     st.subheader("Feature Importance Analysis")
+    
     X = df.drop(columns=[target_column])
     y = df[target_column]
-    model = RandomForestClassifier()
+    
+    # Check the type of target
+    target_type = type_of_target(y)
+    
+    if target_type in ["binary", "multiclass"]:
+        model = RandomForestClassifier()
+        model_name = "RandomForestClassifier"
+    elif target_type in ["continuous", "continuous-multioutput"]:
+        model = RandomForestRegressor()
+        model_name = "RandomForestRegressor"
+    else:
+        st.error(f"Unsupported target type: {target_type}")
+        return None
+
+    # Fit the model
     model.fit(X, y)
     importance_scores = model.feature_importances_
+
+    # Prepare feature importance dataframe
     feature_importance_df = pd.DataFrame({
         'Feature': X.columns,
         'Importance': importance_scores
     }).sort_values(by='Importance', ascending=False)
+    
     st.write("Feature Importance Scores:")
     st.table(feature_importance_df)
+
+    # Plot feature importance
     fig, ax = plt.subplots(figsize=(10, 8))
     sns.barplot(x='Importance', y='Feature', data=feature_importance_df, ax=ax)
+    ax.set_title(f"Feature Importance - {model_name}")
     st.pyplot(fig)
-    return FeatureImportanceResult(importance_scores=dict(zip(X.columns, importance_scores)), model_name="RandomForestClassifier")
+    
+    return FeatureImportanceResult(importance_scores=dict(zip(X.columns, importance_scores)), model_name=model_name)
 
 StatisticalTestResult = namedtuple('StatisticalTestResult', ['test_statistic', 'p_value', 'null_hypothesis', 'alternative_hypothesis', 'significant'])
 def statistical_tests(df, config: AnalysisConfig):
@@ -731,36 +762,51 @@ class DataTransformation:
         self.transformers = {}
 
     def transform_column(self, column, transform_type, params=None):
-            """Transform a single column based on specified type"""
-            try:
-                if transform_type == "one_hot":
-                    encoded_cols = pd.get_dummies(self.df[column], prefix=column)
-                    # Update the original dataframe with encoded columns
-                    self.df = pd.concat([self.df.drop(columns=[column]), encoded_cols], axis=1)
-                    st.session_state["data"] = self.df
-                    return encoded_cols
-                
-                elif transform_type == "label":
-                    le = LabelEncoder()
-                    self.transformers[column] = le
-                    return pd.Series(le.fit_transform(self.df[column]), name=column)
-                
-                elif transform_type == "minmax":
-                    scaler = MinMaxScaler()
-                    self.transformers[column] = scaler
-                    return pd.Series(scaler.fit_transform(self.df[[column]]).flatten(), name=column)
-                
-                elif transform_type == "standard":
-                    scaler = StandardScaler()
-                    self.transformers[column] = scaler
-                    return pd.Series(scaler.fit_transform(self.df[[column]]).flatten(), name=column)
-                
-                elif transform_type == "log":
-                    return pd.Series(np.log1p(self.df[column]), name=column)
-                
-            except Exception as e:
-                st.error(f"Transformation error: {str(e)}")
-                return None
+        """Transform a single column based on specified type."""
+        try:
+            if transform_type == "one_hot":
+                # One-hot encoding
+                encoded_cols = pd.get_dummies(self.df[column], prefix=column)
+                self.df = pd.concat([self.df.drop(columns=[column]), encoded_cols], axis=1)
+                st.session_state["data"] = self.df
+                return encoded_cols
+
+            elif transform_type == "label":
+                # Label encoding
+                le = LabelEncoder()
+                self.transformers[column] = le
+                self.df[column] = le.fit_transform(self.df[column])
+                st.session_state["data"] = self.df
+                return self.df[column]
+
+            elif transform_type == "minmax":
+                # Min-Max scaling
+                scaler = MinMaxScaler()
+                self.transformers[column] = scaler
+                scaled_values = scaler.fit_transform(self.df[[column]]).flatten()
+                self.df[column] = scaled_values
+                st.session_state["data"] = self.df
+                return pd.Series(scaled_values, name=column)
+
+            elif transform_type == "standard":
+                # Standard scaling
+                scaler = StandardScaler()
+                self.transformers[column] = scaler
+                scaled_values = scaler.fit_transform(self.df[[column]]).flatten()
+                self.df[column] = scaled_values
+                st.session_state["data"] = self.df
+                return pd.Series(scaled_values, name=column)
+
+            elif transform_type == "log":
+                # Log transformation
+                log_values = np.log1p(self.df[column])
+                self.df[column] = log_values
+                st.session_state["data"] = self.df
+                return pd.Series(log_values, name=column)
+
+        except Exception as e:
+            st.error(f"Transformation error: {str(e)}")
+            return None
             
 def handle_transformations(df, selected_column):
     """Handle transformations for selected column"""
@@ -787,27 +833,21 @@ def handle_transformations(df, selected_column):
             # Save original state if not already saved
             if f"original_{selected_column}" not in st.session_state:
                 st.session_state[f"original_{selected_column}"] = df[selected_column].copy()
+
             preview = transformer.transform_column(selected_column, transform_type)
+            
             if preview is not None:
                 st.write("Preview of transformed data:")
-                st.dataframe(preview.head())
+                st.table(preview.unique())
                 
                 # Show statistics
                 st.write("Statistics after transformation:")
-                st.dataframe(preview.describe())
+                st.table(preview.describe())
                 
                 # Apply transformation button
                 if st.button("Apply Transformation"):
-                    if transform_type == "one_hot":
-                        # Drop original and add encoded columns
-                        df.drop(columns=[selected_column], inplace=True)
-                        for col in preview.columns:
-                            df[col] = preview[col]
-                    else:
-                        df[selected_column] = preview
-                    
-                    st.success(f"Transformation applied to {selected_column}")
-                    st.session_state["data"] = df
+                    st.success(f"Transformation '{transform_type}' applied to '{selected_column}'.")
+                    st.session_state["data"] = transformer.df
                     
         except Exception as e:
             st.error(f"Error during transformation: {str(e)}")
@@ -820,6 +860,118 @@ def handle_transformations(df, selected_column):
             st.session_state["data"] = df
 
 def replace_column_values(df, selected_column):
+
+    with st.expander("View Unique Values"):
+        value_counts = df[selected_column].value_counts(dropna=False)
+        st.table(value_counts)
+    
+    with st.expander("View Column Density and Statistics"):
+        fig, ax = plt.subplots()
+        sns.kdeplot(df[selected_column].dropna(), ax=ax, fill=True, color="blue")
+        ax.set_title(f"Density Plot for {selected_column}")
+        ax.set_xlabel("Values")
+        st.pyplot(fig)
+
+        # Calculate Mean, Median, and Mode
+        mean_val = df[selected_column].mean()
+        median_val = df[selected_column].median()
+        mode_val = df[selected_column].mode()[0]
+        mis_val =  df[selected_column].isnull().sum()
+        # Calculate statistics
+        stats_df = pd.DataFrame({
+            'Statistic': ['Mean', 'Median', 'Mode' , 'Mising'],
+            'Value': [mean_val, median_val, mode_val , mis_val]
+        })
+        st.table(stats_df)
+        
+        action = st.selectbox(
+            "Select action to apply:",
+            [
+                "Fill with Mean",
+                "Fill with Median",
+                "Fill with Mode",
+                "Fill NaN based on Categorical Target"
+            ],
+            key=f"action_{selected_column}" 
+        )
+    
+    if action == "Fill NaN based on Categorical Target":
+        target_col = st.selectbox(
+            "Select Categorical Target Column",
+            df.columns,
+            key=f"target_col_{selected_column}"  # مفتاح فريد بناءً على اسم العمود
+        )
+        fill_action = st.selectbox(
+            "Choose fill action:",
+            ["Mean", "Median", "Mode"],
+            key=f"fill_action_{selected_column}"  # مفتاح فريد بناءً على اسم العمود
+        )
+
+        # Ensure the target column is not one of the selected columns
+        if target_col == selected_column:
+            st.warning("The target column cannot be one of the selected columns. Please select a different column.")
+        else:
+            fill_action = st.selectbox("Choose fill action:", ["Mean", "Median", "Mode"])
+            
+            
+            preview_df = df.copy()
+            if fill_action == "Mean":
+                preview_df[selected_column] = preview_df.groupby(target_col)[selected_column].transform(lambda x: x.fillna(x.mean()))
+            elif fill_action == "Median":
+                preview_df[selected_column] = preview_df.groupby(target_col)[selected_column].transform(lambda x: x.fillna(x.median()))
+            elif fill_action == "Mode":
+                preview_df[selected_column] = preview_df.groupby(target_col)[selected_column].transform(lambda x: x.fillna(x.mode()[0]))
+
+            # with st.expander("View Unique Values"):
+            #     value_counts = preview_df[selected_column].value_counts(dropna=False)                    
+            #     st.dataframe(value_counts)
+
+            # Show Density after Filling
+            with st.expander("View Updated Density Plot"):
+                fig, ax = plt.subplots()
+                sns.kdeplot(preview_df[selected_column].dropna(), ax=ax, fill=True, color="green")
+                ax.set_title(f"Updated Density Plot for {selected_column}")
+                st.pyplot(fig)
+
+            if st.button("Apply Fill Action"):
+                df[selected_column] = preview_df[selected_column]
+                st.success(f"Applied {fill_action} based fill action for {selected_column} based on {target_col}.")
+
+                st.write(f"Filled NaN values in selected columns based on the '{target_col}' column using {fill_action}.")
+                st.session_state["data"] = df
+
+    else:
+        preview_df = df.copy()
+        if action == "Fill with Mean":
+            preview_df[selected_column].fillna(preview_df[selected_column].mean(), inplace=True)
+        elif action == "Fill with Median":
+            preview_df[selected_column].fillna(preview_df[selected_column].median(), inplace=True)
+        elif action == "Fill with Mode":
+            preview_df[selected_column].fillna(preview_df[selected_column].mode()[0], inplace=True)
+        
+        with st.expander("View Updated Density Plot"):
+            fig, ax = plt.subplots()
+            sns.kdeplot(preview_df[selected_column].dropna(), ax=ax, fill=True, color="green")
+            ax.set_title(f"Updated Density Plot for {selected_column}")
+            st.pyplot(fig)
+
+        if st.button("Apply Fill Action"):
+            df[selected_column] = preview_df[selected_column]
+            st.success(f"Filled NaN values in column '{selected_column}' using {action}.")
+            
+            st.session_state["data"] = df
+            st.success(f"Filled NaN values in column '{selected_column}' using {action}.")
+            st.write(df[selected_column].describe())
+
+    if st.button("Restore Original Values", key=f"restore_numeric_{selected_column}"):
+        if f"original_{selected_column}" in st.session_state:
+            df[selected_column] = st.session_state[f"original_{selected_column}"]
+            st.session_state["data"] = df
+            st.success(f"Restored original values in column '{selected_column}'.")
+            log_change(f"Restore Original Values  {selected_column}" ,preview_df[selected_column], df[selected_column])
+        else:
+            st.warning("No original values saved to restore.")
+
     
     action = st.selectbox(
         "Select action to apply:",
@@ -858,8 +1010,6 @@ def replace_column_values(df, selected_column):
         elif action == "Fill with Mode":
             df[selected_column].fillna(df[selected_column].mode()[0], inplace=True)
                 
-                    
-
     if st.button("Save and Convert to Numeric", key=f"save_convert_numeric_{selected_column}"):
         if f"original_{selected_column}" not in st.session_state:
             st.session_state[f"original_{selected_column}"] = df[selected_column].copy()
@@ -869,14 +1019,41 @@ def replace_column_values(df, selected_column):
             st.session_state["data"] = df
             st.success(f"Converted column '{selected_column}' to {action}.")
             st.write("Column Statistics (After Conversion):")
-            st.write(df[selected_column].describe())
+            st.table(df[selected_column].describe())
         except Exception as e:
             st.error(f"Error converting to numeric: {e}")
 
-    if st.button("Restore Original Values", key=f"restore_numeric_{selected_column}"):
-        if f"original_{selected_column}" in st.session_state:
-            df[selected_column] = st.session_state[f"original_{selected_column}"]
-            st.session_state["data"] = df
-            st.success(f"Restored original values in column '{selected_column}'.")
-        else:
-            st.warning("No original values saved to restore.")
+
+def log_change(operation: str, before: str, details: str):
+    """Log a change operation with timestamp"""
+    if 'change_log' not in st.session_state:
+        st.session_state.change_log = []
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.change_log.append({
+        'timestamp': timestamp,
+        'operation': operation,
+        'Before': before,
+        'details': details
+    })
+
+# Add this function to display changes
+def show_change_log():
+    """Display the change log in the sidebar"""
+    if 'change_log' in st.session_state and st.session_state.change_log:
+        st.subheader("Change Log")
+        view_option = st.radio(
+            "View changes:",
+            ["Latest First", "Oldest First"]
+        )
+        
+        changes = st.session_state.change_log.copy()
+        if view_option == "Latest First":
+            changes.reverse()
+            
+        for change in changes:
+            with st.expander(f"{change['operation']} - {change['timestamp']}"):
+                st.write(change['Before'])
+                st.write(change['details'])
+    else:
+        st.info("No changes logged yet")
