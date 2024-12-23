@@ -55,16 +55,22 @@ def missing_value_analysis(df):
     fig_size = st.slider("Select Plot Size", 5, 15, 10)
     
     viz_type == "Bar Plot"
+    st.write("### Bar Plot")
+    st.write("A bar plot shows the number of missing values for each column.")
     fig, ax = plt.subplots(figsize=(fig_size, fig_size//2))
     msno.bar(df, ax=ax, color="skyblue")
     st.pyplot(fig)
         
     viz_type == "Matrix Plot"
+    st.write("### Matrix Plot")
+    st.write("A matrix plot shows the pattern of missing values in the dataset.")
     fig, ax = plt.subplots(figsize=(fig_size, fig_size//2))
     msno.matrix(df, ax=ax)
     st.pyplot(fig)
         
     viz_type == "Heatmap"
+    st.write("### Heatmap")
+    st.write("A heatmap shows the presence of missing values in the dataset, with colors indicating the missingness.")
     fig, ax = plt.subplots(figsize=(fig_size, fig_size//2))
     sns.heatmap(df.isnull(), cbar=True, cmap="YlOrRd", ax=ax)
     st.pyplot(fig)
