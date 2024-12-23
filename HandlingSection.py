@@ -150,19 +150,19 @@ def NormalizeColumn(df, selected_column):
 
     apply_strip = st.checkbox(
         "Remove leading and trailing spaces (strip)",
-        value=True,
+        value=False,
         key=f"strip_{selected_column}",
         help="This option removes any spaces at the beginning or end of the text in the column."
     )
     apply_lowercase = st.checkbox(
         "Convert to lowercase",
-        value=True,
+        value=False,
         key=f"lowercase_{selected_column}",
         help="This option converts all text in the column to lowercase."
     )
     apply_uppercase = st.checkbox(
         "Convert to uppercase",
-        value=True,
+        value=False,
         key=f"uppercase_{selected_column}",
         help="This option converts all text in the column to uppercase."
     )
@@ -676,6 +676,20 @@ def correlation_analysis(df, target_column):
     """Perform correlation analysis on all columns and user-selected features."""
     st.subheader("Correlation Analysis")
     
+    # Preprocess the DataFrame: Convert non-numeric to NaN and drop problematic rows
+    df_numeric = df.select_dtypes(include=['float64', 'int64']).copy()
+    df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')  # Coerce non-numeric to NaN
+    
+    # Drop rows with all NaN values (optional)
+    if df_numeric.isnull().all(axis=1).any():
+        st.warning("Rows with all NaN values will be dropped for correlation analysis.")
+        df_numeric = df_numeric.dropna(how='all')
+    
+    # Check if the numeric DataFrame is empty after cleaning
+    if df_numeric.empty:
+        st.error("No valid numeric data available for correlation analysis after cleaning.")
+        return None
+    
     # All Columns Correlation
     st.write("### Correlation Matrix for All Columns")
     correlation_matrix_all = df.corr()  # Calculate correlation for all numerical columns
@@ -915,27 +929,27 @@ def replace_column_values(df, selected_column):
         })
         st.table(stats_df)
         
-        action = st.selectbox(
-            "Select action to apply:",
-            [
-                "Fill with Mean",
-                "Fill with Median",
-                "Fill with Mode",
-                "Fill NaN based on Categorical Target"
-            ],
-            key=f"action_{selected_column}" 
-        )
+    action = st.selectbox(
+        "Select action to apply:",
+        [
+            "Fill with Mean",
+            "Fill with Median",
+            "Fill with Mode",
+            "Fill NaN based on Categorical Target"
+        ],
+        key=f"action_{selected_column}" 
+    )
     
     if action == "Fill NaN based on Categorical Target":
         target_col = st.selectbox(
             "Select Categorical Target Column",
             df.columns,
-            key=f"target_col_{selected_column}"  # مفتاح فريد بناءً على اسم العمود
+            key=f"target_col_{selected_column}"  
         )
         fill_action = st.selectbox(
             "Choose fill action:",
             ["Mean", "Median", "Mode"],
-            key=f"fill_action_{selected_column}"  # مفتاح فريد بناءً على اسم العمود
+            key=f"fill_action_{selected_column}" 
         )
 
         # Ensure the target column is not one of the selected columns
@@ -1013,6 +1027,7 @@ def replace_column_values(df, selected_column):
             "Fill NaN based on Categorical Target"
         ]
     )
+
     st.session_state["data"] = df
     if action == "Fill NaN based on Categorical Target":
             target_col = st.selectbox("Select Categorical Target Column", df.columns)
